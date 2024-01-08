@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electrode Selector</title>
+    <style>
+        #plot-container {
+            position: relative;
+        }
+
+        .electrode {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #3498db;
+            cursor: pointer;
+        }
+
+        .selected {
+            background-color: #e74c3c;
+        }
+
+        #selection-rectangle {
+            border: 2px dashed #3498db;
+            position: absolute;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="fileInput" accept=".json" />
+    <div id="plot-container"></div>
+
+    <div id="selection-rectangle"></div>
+
+    <script>
+        let electrodeData;
+        let selectedElectrodes = [];
+
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                electrodeData = JSON.parse(e.target.result);
+                createPlot();
+            };
+            reader.readAsText(file);
+        }
+
+        function createPlot() {
+            const plotContainer = document.getElementById('plot-container');
+            plotContainer.innerHTML = ''; // Clear previous content
+
+            electrodeData.forEach((electrode, index) => {
+                const electrodeElement = document.createElement('div');
+                electrodeElement.className = 'electrode';
+                electrodeElement.style.left = electrode.x + 'px';
+                electrodeElement.style.top = electrode.y + 'px';
+                electrodeElement.setAttribute('data-index', index);
+
+                electrodeElement.addEventListener('click', handleElectrodeClick);
+
+                plotContainer.appendChild(electrodeElement);
+            });
+
+            plotContainer.addEventListener('mousedown', handleMouseDown);
+            plotContainer.addEventListener('mousemove', handleMouseMove);
+            plotContainer.addEventListener('mouseup', handleMouseUp);
+        }
+
+        function handleElectrodeClick(event) {
+            const electrodeElement = event.target;
+            const index = parseInt(electrodeElement.getAttribute('data-index'));
+
+            if (electrodeElement.classList.contains('selected')) {
+                electrodeElement.classList.remove('selected');
+                selectedElectrodes = selectedElectrodes.filter(i => i !== index);
+            } else {
+                electrodeElement.classList.add('selected');
+                selectedElectrodes.push(index);
+            }
+        }
+
+        let isSelecting = false;
+        let startX, startY;
+
+        function handleMouseDown(event) {
+            isSelecting = true;
+            startX = event.clientX;
+            startY = event.clientY;
+
+            const rectangle = document.getElementById('selection-rectangle');
+            rectangle.style.left = startX + 'px';
+            rectangle.style.top = startY + 'px';
+            rectangle.style.width = '0';
+            rectangle.style.height = '0';
+            rectangle.style.display = 'block';
+        }
+
+        function handleMouseMove(event) {
+            if (!isSelecting) return;
+
+            const rectangle = document.getElementById('selection-rectangle');
+            const width = event.clientX - startX;
+            const height = event.clientY - startY;
+
+            rectangle.style.width = width + 'px';
+            rectangle.style.height = height + 'px';
+
+            highlightSelectedElectrodes(startX, startY, width, height);
+        }
+
+        function handleMouseUp() {
+            isSelecting = false;
+
+            const rectangle = document.getElementById('selection-rectangle');
+            rectangle.style.display = 'none';
+
+            console.log("Selected Electrodes:", selectedElectrodes);
+
+            // TODO: Output selectedElectrodes as a JSON file or perform other actions
+        }
+
+        function highlightSelectedElectrodes(x, y, width, height) {
+            const plotContainer = document.getElementById('plot-container');
+            const electrodes = plotContainer.getElementsByClassName('electrode');
+
+            selectedElectrodes = [];
+
+            for (const electrode of electrodes) {
+                const rect = electrode.getBoundingClientRect();
+
+                if (
+                    rect.left < x + width &&
+                    rect.left + rect.width > x &&
+                    rect.top < y + height &&
+                    rect.top + rect.height > y
+                ) {
+                    electrode.classList.add('selected');
+                    selectedElectrodes.push(parseInt(electrode.getAttribute('data-index')));
+                } else {
+                    electrode.classList.remove('selected');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

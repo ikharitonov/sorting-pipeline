@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electrode Selector</title>
+    <style>
+        #plot-container {
+            position: relative;
+        }
+
+        .electrode {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #3498db;
+            cursor: pointer;
+        }
+
+        .selected {
+            background-color: #e74c3c;
+        }
+
+        #horizontal-slider {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 100%;
+            height: 10px;
+            cursor: pointer;
+        }
+
+        #slider-start,
+        #slider-end {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #27ae60;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="fileInput" accept=".json" />
+    <div id="plot-container"></div>
+
+    <div id="horizontal-slider">
+        <div id="slider-start"></div>
+        <div id="slider-end"></div>
+    </div>
+
+    <script>
+        let electrodeData;
+        let selectedElectrodes = [];
+
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                electrodeData = JSON.parse(e.target.result);
+                createPlot();
+                createHorizontalSlider();
+            };
+            reader.readAsText(file);
+        }
+
+        function createPlot() {
+            const plotContainer = document.getElementById('plot-container');
+            plotContainer.innerHTML = ''; // Clear previous content
+
+            electrodeData.forEach((electrode, index) => {
+                const electrodeElement = document.createElement('div');
+                electrodeElement.className = 'electrode';
+                electrodeElement.style.left = electrode.x + 'px';
+                electrodeElement.style.top = electrode.y + 'px';
+                electrodeElement.setAttribute('data-index', index);
+
+                electrodeElement.addEventListener('click', handleElectrodeClick);
+
+                plotContainer.appendChild(electrodeElement);
+            });
+
+            plotContainer.addEventListener('mousedown', handleMouseDown);
+            plotContainer.addEventListener('mousemove', handleMouseMove);
+            plotContainer.addEventListener('mouseup', handleMouseUp);
+        }
+
+        function createHorizontalSlider() {
+            const sliderContainer = document.getElementById('horizontal-slider');
+            const sliderStart = document.getElementById('slider-start');
+            const sliderEnd = document.getElementById('slider-end');
+
+            sliderStart.style.left = '0';
+            sliderEnd.style.right = '0';
+
+            sliderStart.addEventListener('mousedown', handleSliderStart);
+            sliderEnd.addEventListener('mousedown', handleSliderEnd);
+        }
+
+        function handleElectrodeClick(event) {
+            const electrodeElement = event.target;
+            const index = parseInt(electrodeElement.getAttribute('data-index'));
+
+            if (electrodeElement.classList.contains('selected')) {
+                electrodeElement.classList.remove('selected');
+                selectedElectrodes = selectedElectrodes.filter(i => i !== index);
+            } else {
+                electrodeElement.classList.add('selected');
+                selectedElectrodes.push(index);
+            }
+        }
+
+        let isSliderStartDragging = false;
+        let isSliderEndDragging = false;
+        let startX, startLeft, endX, startRight;
+
+        function handleSliderStart(event) {
+            isSliderStartDragging = true;
+            startX = event.clientX;
+            startLeft = parseInt(event.target.style.left);
+        }
+
+        function handleSliderEnd(event) {
+            isSliderEndDragging = true;
+            endX = event.clientX;
+            startRight = parseInt(event.target.style.right);
+        }
+
+        function handleMouseMove(event) {
+            if (isSliderStartDragging) {
+                const sliderStart = document.getElementById('slider-start');
+                const deltaX = event.clientX - startX;
+                const newLeft = Math.min(Math.max(startLeft + deltaX, 0), 100);
+                sliderStart.style.left = newLeft + 'px';
+                highlightSelectedElectrodesWithSlider(newLeft, startRight);
+            } else if (isSliderEndDragging) {
+                const sliderEnd = document.getElementById('slider-end');
+                const deltaX = endX - event.clientX;
+                const newRight = Math.min(Math.max(startRight + deltaX, 0), 100);
+                sliderEnd.style.right = newRight + 'px';
+                highlightSelectedElectrodesWithSlider(startLeft, newRight);
+            }
+        }
+
+        function handleMouseUp() {
+            isSliderStartDragging = false;
+            isSliderEndDragging = false;
+
+            console.log("Selected Electrodes:", selectedElectrodes);
+
+            // TODO: Output selectedElectrodes as a JSON file or perform other actions
+        }
+
+        function highlightSelectedElectrodesWithSlider(leftPercentage, rightPercentage) {
+            const plotContainer = document.getElementById('plot-container');
+            const electrodes = plotContainer.getElementsByClassName('electrode');
+
+            selectedElectrodes = [];
+
+            const plotWidth = plotContainer.clientWidth;
+            const leftBoundary = (leftPercentage / 100) * plotWidth;
+            const rightBoundary = plotWidth - (rightPercentage / 100) * plotWidth;
+
+            for (const electrode of electrodes) {
+                const rect = electrode.getBoundingClientRect();
+                const electrodeX = rect.left + rect.width / 2;
+
+                if (electrodeX >= leftBoundary && electrodeX <= rightBoundary) {
+                    electrode.classList.add('selected');
+                    selectedElectrodes.push(parseInt(electrode.getAttribute('data-index')));
+                } else {
+                    electrode.classList.remove('selected');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
