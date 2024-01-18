@@ -1,0 +1,13 @@
+{
+    "metric_names": [
+        "peak_to_valley",
+        "peak_trough_ratio",
+        "half_width",
+        "repolarization_slope",
+        "recovery_slope"
+    ],
+    "sparsity": null,
+    "peak_sign": "neg",
+    "upsampling_factor": 10,
+    "window_slope_ms": 0.7
+}
